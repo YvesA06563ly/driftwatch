@@ -93,3 +93,14 @@ def test_both_empty_to_populated(detector):
     events = detector.compare(_snap({}), _snap({"X": "1"}))
     assert len(events) == 1
     assert events[0].kind == "added"
+
+
+def test_collector_name_propagated_to_all_events(detector):
+    """All drift events should carry the collector name from the detector."""
+    baseline = _snap({"A": "1", "B": "2"})
+    current = _snap({"A": "changed", "C": "3"})
+    events = detector.compare(baseline, current)
+    # Expect: A changed, B removed, C added
+    assert len(events) == 3
+    for event in events:
+        assert event.collector == COLLECTOR_NAME
