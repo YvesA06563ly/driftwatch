@@ -1,70 +1,76 @@
-"""Load and validate DriftWatch YAML/JSON configuration."""
+"""Configuration loading and validation for driftwatch."""
 from __future__ import annotations
 
 import json
 from pathlib import Path
 from typing import Any
 
-try:
-    import yaml  # type: ignore
-    _YAML_AVAILABLE = True
-except ImportError:
-    _YAML_AVAILABLE = False
+import yaml  # type: ignore
 
-_REQUIRED_TOP_KEYS = ("collectors",)
-_VALID_COLLECTOR_TYPES = {"env", "file", "process"}
-_VALID_ALERTER_TYPES = {"log", "webhook"}
+from driftwatch.collectors import list_collectors
+from driftwatch.alerters import list_alerters
+
+_KNOWN_COLLECTORS = set(list_collectors())
+_KNOWN_ALERTERS = set(list_alerters())
 
 
 class ConfigError(ValueError):
-    """Raised when configuration is invalid."""
+    """Raised when the driftwatch configuration is invalid."""
 
 
 def load_config(path: str | Path) -> dict[str, Any]:
-    """Load configuration from a YAML or JSON file."""
+    """Load a YAML or JSON config file and return the parsed dict."""
     path = Path(path)
-    if not path.exists():
-        raise ConfigError(f"Config file not found: {path}")
-
-    text = path.read_text(encoding="utf-8")
-    suffix = path.suffix.lower()
-
-    if suffix in (".yaml", ".yml"):
-        if not _YAML_AVAILABLE:
-            raise ConfigError("PyYAML is required to load YAML configs (pip install pyyaml).")
-        data = yaml.safe_load(text)
-    elif suffix == ".json":
-        data = json.loads(text)
+    raw = path.read_text(encoding="utf-8")
+    if path.suffix in {".yaml", ".yml"}:
+        data = yaml.safe_load(raw)
     else:
-        raise ConfigError(f"Unsupported config format: {suffix}")
-
-    validate_config(data)
+        data = json.loads(raw)
+    if not isinstance(data, dict):
+        raise ConfigError("Config file must contain a YAML/JSON mapping at the top level.")
     return data
 
 
-def validate_config(data: dict[str, Any]) -> None:
-    """Validate top-level structure and collector/alerter entries."""
-    if not isinstance(data, dict):
-        raise ConfigError("Config must be a mapping.")
+def validate_config(config: dict[str, Any]) -> None:
+    """Validate the top-level structure of a driftwatch config dict.
 
-    for key in _REQUIRED_TOP_KEYS:
-        if key not in data:
-            raise ConfigError(f"Missing required config key: '{key}'")
+    Raises
+    ------
+    ConfigError
+        On any structural or type violation.
+    """
+    if not isinstance(config, dict):
+        raise ConfigError("Config must be a dict.")
 
-    for i, entry in enumerate(data.get("collectors", [])):
-        if "type" not in entry:
-            raise ConfigError(f"collectors[{i}] missing 'type' field.")
-        if entry["type"] not in _VALID_COLLECTOR_TYPES:
+    if "collectors" not in config:
+        raise ConfigError("Config must contain a 'collectors' key.")
+
+    collectors = config["collectors"]
+    if not isinstance(collectors, list) or not collectors:
+        raise ConfigError("'collectors' must be a non-empty list.")
+
+    for i, col in enumerate(collectors):
+        if not isinstance(col, dict):
+            raise ConfigError(f"collectors[{i}] must be a dict.")
+        if "type" not in col:
+            raise ConfigError(f"collectors[{i}] is missing required key 'type'.")
+        if col["type"] not in _KNOWN_COLLECTORS:
             raise ConfigError(
-                f"collectors[{i}] unknown type '{entry['type']}'. "
-                f"Valid: {sorted(_VALID_COLLECTOR_TYPES)}"
+                f"collectors[{i}] has unknown type '{col['type']}'. "
+                f"Known: {sorted(_KNOWN_COLLECTORS)}"
             )
 
-    for i, entry in enumerate(data.get("alerters", [])):
-        if "type" not in entry:
-            raise ConfigError(f"alerters[{i}] missing 'type' field.")
-        if entry["type"] not in _VALID_ALERTER_TYPES:
+    alerters = config.get("alerters", [])
+    if not isinstance(alerters, list):
+        raise ConfigError("'alerters' must be a list.")
+
+    for i, al in enumerate(alerters):
+        if not isinstance(al, dict):
+            raise ConfigError(f"alerters[{i}] must be a dict.")
+        if "type" not in al:
+            raise ConfigError(f"alerters[{i}] is missing required key 'type'.")
+        if al["type"] not in _KNOWN_ALERTERS:
             raise ConfigError(
-                f"alerters[{i}] unknown type '{entry['type']}'. "
-                f"Valid: {sorted(_VALID_ALERTER_TYPES)}"
+                f"alerters[{i}] has unknown type '{al['type']}'. "
+                f"Known: {sorted(_KNOWN_ALERTERS)}"
             )
