@@ -29,6 +29,8 @@ class ProcessCollector(BaseCollector):
                 ) from exc
         if not isinstance(self._pids, list):
             raise ValueError("'pids' must be a list of integers")
+        if not all(isinstance(p, int) for p in self._pids):
+            raise ValueError("'pids' must be a list of integers")
 
     def collect(self) -> ConfigSnapshot:
         data: dict[str, Any] = {}
