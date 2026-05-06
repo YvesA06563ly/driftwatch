@@ -81,6 +81,14 @@ def test_emit_summary_no_events_writes_nothing(alerter, buf):
     assert buf.getvalue() == ""
 
 
+def test_emit_summary_includes_timestamp_when_enabled(buf):
+    """Verify emit_summary also respects the include_timestamp flag."""
+    alerter = LogAlerter(output=buf, include_timestamp=True)
+    alerter.emit_summary([_make_event(change_type="added", key="A")])
+    record = json.loads(buf.getvalue().strip())
+    assert "timestamp" in record
+
+
 def test_invalid_level_raises():
     with pytest.raises(ValueError, match="Unsupported log level"):
         LogAlerter(level="verbose")
