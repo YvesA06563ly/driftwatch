@@ -1,72 +1,40 @@
-"""Collector registry for driftwatch."""
-
+"""Collector registry — maps type strings to collector classes."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import Any
 
-from .base import BaseCollector, ConfigSnapshot
-from .env_collector import EnvCollector
-from .file_collector import FileCollector
-from .process_collector import ProcessCollector
+from driftwatch.collectors.env_collector import EnvCollector
+from driftwatch.collectors.file_collector import FileCollector
+from driftwatch.collectors.http_collector import HttpCollector
+from driftwatch.collectors.process_collector import ProcessCollector
 
-if TYPE_CHECKING:
-    from typing import Any
-
-_REGISTRY: dict[str, type[BaseCollector]] = {
+_REGISTRY: dict[str, type] = {
     "env": EnvCollector,
     "file": FileCollector,
     "process": ProcessCollector,
+    "http": HttpCollector,
 }
 
 
-def get_collector(kind: str, config: dict[str, Any]) -> BaseCollector:
-    """Instantiate and validate a collector by *kind* name.
-
-    Parameters
-    ----------
-    kind:
-        One of the registered collector type names (``"env"``, ``"file"``,
-        ``"process"``).
-    config:
-        Collector-specific configuration dictionary.
+def get_collector(collector_type: str, name: str, config: dict[str, Any]):
+    """Instantiate and return a validated collector by type string.
 
     Raises
     ------
-    KeyError
-        If *kind* is not registered.
     ValueError
-        If the collector's ``validate_config`` check fails.
+        If *collector_type* is not registered.
     """
-    try:
-        cls = _REGISTRY[kind]
-    except KeyError:
-        available = ", ".join(sorted(_REGISTRY))
-        raise KeyError(
-            f"Unknown collector kind {kind!r}. Available: {available}"
-        ) from None
-
-    collector = cls(config)
-    collector.validate_config()
-    return collector
+    cls = _REGISTRY.get(collector_type)
+    if cls is None:
+        raise ValueError(
+            f"Unknown collector type {collector_type!r}. "
+            f"Available: {list(_REGISTRY)}"
+        )
+    instance = cls(name, config)
+    instance.validate_config()
+    return instance
 
 
 def list_collectors() -> list[str]:
-    """Return a sorted list of registered collector kind names.
-
-    Returns
-    -------
-    list[str]
-        Sorted collector kind names currently in the registry.
-    """
-    return sorted(_REGISTRY)
-
-
-__all__ = [
-    "BaseCollector",
-    "ConfigSnapshot",
-    "EnvCollector",
-    "FileCollector",
-    "ProcessCollector",
-    "get_collector",
-    "list_collectors",
-]
+    """Return sorted list of registered collector type strings."""
+    return sorted(_REGISTRY.keys())
