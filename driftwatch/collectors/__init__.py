@@ -50,6 +50,17 @@ def get_collector(kind: str, config: dict[str, Any]) -> BaseCollector:
     return collector
 
 
+def list_collectors() -> list[str]:
+    """Return a sorted list of registered collector kind names.
+
+    Returns
+    -------
+    list[str]
+        Sorted collector kind names currently in the registry.
+    """
+    return sorted(_REGISTRY)
+
+
 __all__ = [
     "BaseCollector",
     "ConfigSnapshot",
@@ -57,4 +68,5 @@ __all__ = [
     "FileCollector",
     "ProcessCollector",
     "get_collector",
+    "list_collectors",
 ]
