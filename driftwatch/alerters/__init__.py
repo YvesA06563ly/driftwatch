@@ -1,45 +1,38 @@
-"""Alerter registry for driftwatch."""
-
+"""Alerter registry — maps string type names to alerter classes."""
 from __future__ import annotations
 
-from typing import Any, Dict
+from typing import Any
 
 from driftwatch.alerters.file_alerter import FileAlerter
 from driftwatch.alerters.log_alerter import LogAlerter
+from driftwatch.alerters.pagerduty_alerter import PagerDutyAlerter
+from driftwatch.alerters.slack_alerter import SlackAlerter
 from driftwatch.alerters.webhook_alerter import WebhookAlerter
 
-_ALERTER_REGISTRY: Dict[str, Any] = {
+_REGISTRY: dict[str, type] = {
     "log": LogAlerter,
-    "webhook": WebhookAlerter,
     "file": FileAlerter,
+    "webhook": WebhookAlerter,
+    "slack": SlackAlerter,
+    "pagerduty": PagerDutyAlerter,
 }
 
 
-def get_alerter(alerter_type: str, **kwargs: Any):
-    """Instantiate an alerter by type name.
+def list_alerters() -> list[str]:
+    """Return sorted list of registered alerter type names."""
+    return sorted(_REGISTRY.keys())
 
-    Parameters
-    ----------
-    alerter_type:
-        One of ``log``, ``webhook``, or ``file``.
-    **kwargs:
-        Constructor arguments forwarded to the alerter class.
 
-    Raises
-    ------
-    KeyError
-        If *alerter_type* is not registered.
+def get_alerter(alerter_type: str, config: dict[str, Any]) -> Any:
+    """Instantiate and return an alerter by type name.
+
+    Raises:
+        KeyError: if *alerter_type* is not registered.
+        ValueError: if the alerter rejects *config*.
     """
-    try:
-        cls = _ALERTER_REGISTRY[alerter_type]
-    except KeyError:
-        available = ", ".join(sorted(_ALERTER_REGISTRY))
+    if alerter_type not in _REGISTRY:
         raise KeyError(
-            f"Unknown alerter type '{alerter_type}'. Available: {available}"
-        ) from None
-    return cls(**kwargs)
-
-
-def list_alerters() -> list:
-    """Return the names of all registered alerter types."""
-    return sorted(_ALERTER_REGISTRY.keys())
+            f"Unknown alerter type '{alerter_type}'. "
+            f"Available: {list_alerters()}"
+        )
+    return _REGISTRY[alerter_type](config)
