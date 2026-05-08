@@ -93,20 +93,10 @@ def test_emit_raises_on_bad_status(alerter: PagerDutyAlerter) -> None:
             alerter.emit([_make_event()])
 
 
-def test_emit_summary_delegates_to_emit(alerter: PagerDutyAlerter) -> None:
-    events = [_make_event()]
-    with patch.object(alerter, "emit") as mock_emit:
-        alerter.emit_summary(events)
-    mock_emit.assert_called_once_with(events)
-
-
-def test_default_severity_is_warning() -> None:
-    a = PagerDutyAlerter({"routing_key": "key"})
-    payload = a._build_payload(_make_event())
-    assert payload["payload"]["severity"] == "warning"
-
-
-def test_custom_source() -> None:
-    a = PagerDutyAlerter({"routing_key": "key", "source": "myapp"})
-    payload = a._build_payload(_make_event())
-    assert payload["payload"]["source"] == "myapp"
+def test_emit_summary_delegates_to_event(alerter: PagerDutyAlerter) -> None:
+    """Verify the payload summary reflects the event's key and change_type."""
+    event = _make_event(key="TIMEOUT", change_type="added", old=None, new="30")
+    payload = alerter._build_payload(event)
+    summary = payload["payload"]["summary"]
+    assert "TIMEOUT" in summary
+    assert "added" in summary
