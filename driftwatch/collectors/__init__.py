@@ -1,7 +1,7 @@
-"""Collector registry — maps collector type names to their classes."""
+"""Collector registry – maps type names to collector classes."""
 from __future__ import annotations
 
-from typing import Any, Dict, List
+from typing import Any
 
 from driftwatch.collectors.base import BaseCollector
 from driftwatch.collectors.env_collector import EnvCollector
@@ -14,8 +14,9 @@ from driftwatch.collectors.aws_collector import AwsCollector
 from driftwatch.collectors.git_collector import GitCollector
 from driftwatch.collectors.consul_collector import ConsulCollector
 from driftwatch.collectors.kubernetes_collector import KubernetesCollector
+from driftwatch.collectors.vault_collector import VaultCollector
 
-_REGISTRY: Dict[str, type] = {
+_REGISTRY: dict[str, type[BaseCollector]] = {
     "env": EnvCollector,
     "file": FileCollector,
     "process": ProcessCollector,
@@ -26,28 +27,29 @@ _REGISTRY: Dict[str, type] = {
     "git": GitCollector,
     "consul": ConsulCollector,
     "kubernetes": KubernetesCollector,
+    "vault": VaultCollector,
 }
 
 
-def list_collectors() -> List[str]:
-    """Return the names of all registered collector types."""
-    return list(_REGISTRY.keys())
+def list_collectors() -> list[str]:
+    """Return sorted list of registered collector type names."""
+    return sorted(_REGISTRY.keys())
 
 
-def get_collector(collector_type: str, config: Dict[str, Any]) -> BaseCollector:
+def get_collector(collector_type: str, config: dict[str, Any]) -> BaseCollector:
     """Instantiate and validate a collector by type name.
 
-    Raises
-    ------
-    ValueError
-        If *collector_type* is unknown or the config fails validation.
+    Raises:
+        KeyError: if *collector_type* is not registered.
+        ValueError: if the collector's config validation fails.
     """
-    if collector_type not in _REGISTRY:
-        raise ValueError(
+    try:
+        cls = _REGISTRY[collector_type]
+    except KeyError:
+        raise KeyError(
             f"Unknown collector type '{collector_type}'. "
             f"Available: {list_collectors()}"
-        )
-    cls = _REGISTRY[collector_type]
-    instance: BaseCollector = cls(config)
+        ) from None
+    instance = cls(config)
     instance.validate_config()
     return instance
