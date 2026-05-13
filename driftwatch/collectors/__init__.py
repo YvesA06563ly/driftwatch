@@ -1,4 +1,4 @@
-"""Collector registry – maps collector type names to their classes."""
+"""Collector registry — maps collector type names to their classes."""
 from __future__ import annotations
 
 from typing import Any, Dict, List
@@ -20,6 +20,14 @@ from driftwatch.collectors.etcd_collector import EtcdCollector
 from driftwatch.collectors.postgres_collector import PostgresCollector
 from driftwatch.collectors.snmp_collector import SnmpCollector
 from driftwatch.collectors.dns_collector import DnsCollector
+from driftwatch.collectors.mysql_collector import MySQLCollector
+from driftwatch.collectors.ssl_collector import SslCollector
+from driftwatch.collectors.prometheus_collector import PrometheusCollector
+from driftwatch.collectors.nomad_collector import NomadCollector
+from driftwatch.collectors.terraform_collector import TerraformCollector
+from driftwatch.collectors.syslog_collector import SyslogCollector
+from driftwatch.collectors.grafana_collector import GrafanaCollector
+from driftwatch.collectors.cloudwatch_collector import CloudWatchCollector
 
 _REGISTRY: Dict[str, type] = {
     "env": EnvCollector,
@@ -38,6 +46,14 @@ _REGISTRY: Dict[str, type] = {
     "postgres": PostgresCollector,
     "snmp": SnmpCollector,
     "dns": DnsCollector,
+    "mysql": MySQLCollector,
+    "ssl": SslCollector,
+    "prometheus": PrometheusCollector,
+    "nomad": NomadCollector,
+    "terraform": TerraformCollector,
+    "syslog": SyslogCollector,
+    "grafana": GrafanaCollector,
+    "cloudwatch": CloudWatchCollector,
 }
 
 
@@ -51,14 +67,12 @@ def get_collector(collector_type: str, config: Dict[str, Any]) -> BaseCollector:
 
     Raises
     ------
+    KeyError
+        If *collector_type* is not registered.
     ValueError
-        If *collector_type* is unknown or the config fails validation.
+        If the collector's ``validate_config`` raises.
     """
-    if collector_type not in _REGISTRY:
-        raise ValueError(
-            f"unknown collector type {collector_type!r}; "
-            f"available: {list_collectors()}"
-        )
-    instance = _REGISTRY[collector_type](config)
+    cls = _REGISTRY[collector_type]
+    instance: BaseCollector = cls(config)
     instance.validate_config()
     return instance
